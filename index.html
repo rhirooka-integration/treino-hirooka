@@ -23,9 +23,9 @@
   --paper:#FBFAF6;       /* cartão */
   --ink:#1F1E1B;         /* texto */
   --ink-2:#55534C;       /* texto secundário */
-  --ink-3:#8A877D;       /* legendas */
+  --ink-3:#6F6C63;       /* legendas */
   --line:#E4E0D4;        /* filetes */
-  --line-2:#D5D0C1;
+  --line-2:#C9C3B2;
   --clay:#C2613F;        /* acento argila */
   --clay-soft:#F3E3DA;
   --olive:#5F7A4E;       /* ok / concluído */
@@ -58,13 +58,12 @@ button{cursor:pointer}
 
 /* ---------- Cabeçalho ---------- */
 header{
-  position:sticky;top:0;z-index:10;background:rgba(245,243,236,.92);
-  backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);
-  border-bottom:1px solid var(--line);padding:calc(14px + var(--safe-t)) 20px 14px;
+  position:sticky;top:0;z-index:10;background:var(--bg);
+  border-bottom:1px solid var(--line);padding:calc(14px + var(--safe-t)) 16px 14px;
 }
 .hdr{max-width:680px;margin:0 auto;display:flex;align-items:flex-end;justify-content:space-between;gap:12px}
 header h1{font-family:var(--serif);font-size:26px;font-weight:500;letter-spacing:-.015em;line-height:1.1}
-header .sub{font-family:var(--serif);font-style:italic;font-size:14px;color:var(--ink-2);margin-top:3px}
+header .sub{font-family:var(--serif);font-style:italic;font-size:14px;text-wrap:balance;color:var(--ink-2);margin-top:3px}
 
 /* Badge de sincronização */
 .sync{
@@ -107,7 +106,8 @@ main{max-width:680px;margin:0 auto;padding:20px 16px}
 .seg button:last-child{border-right:none}
 .seg button b{font-family:var(--serif);font-size:22px;font-weight:500;line-height:1.1}
 .seg button small{font-size:11.5px;letter-spacing:.02em}
-.seg button.on{background:var(--ink);color:var(--bg)}
+.seg button.on{background:var(--clay-soft);color:var(--clay);box-shadow:inset 0 -2px 0 var(--clay)}
+.seg button:not(.on) b{color:var(--ink-2)}
 
 /* ---------- Blocos informativos ---------- */
 .note{
@@ -118,7 +118,7 @@ main{max-width:680px;margin:0 auto;padding:20px 16px}
 .warmup li{margin-left:18px;margin-top:4px}
 .warmup li::marker{color:var(--clay)}
 .demo{
-  display:inline-flex;align-items:center;gap:4px;margin-top:6px;font-size:12.5px;font-weight:500;
+  display:inline-flex;align-items:center;gap:4px;margin-top:8px;padding:4px 0;font-size:13px;font-weight:500;
   color:var(--clay);text-decoration:none;border-bottom:1px solid transparent;
 }
 .demo:hover{border-bottom-color:var(--clay)}
@@ -129,20 +129,21 @@ details summary::after{content:"+";margin-left:auto;color:var(--ink-3);font-size
 details[open] summary::after{transform:rotate(45deg)}
 
 /* ---------- Progresso da sessão ---------- */
-.progress{height:3px;border-radius:99px;background:var(--line);overflow:hidden;margin-top:12px}
+.progress{height:4px;border-radius:99px;background:#E9E4D6;overflow:hidden;margin-top:12px}
 .progress > i{display:block;height:100%;width:0;background:var(--clay);transition:width .35s}
 
 /* ---------- Card de exercício ---------- */
 .ex{transition:.2s;position:relative}
 .ex.done{background:#F7F8F1;border-color:#D6DDC8}
 .ex .top{display:flex;justify-content:space-between;align-items:flex-start;gap:14px}
-.ex .idx{font-family:var(--serif);font-style:italic;font-size:13px;color:var(--ink-3);margin-bottom:2px}
+.ex .cue{font-size:13px;color:var(--ink-2);margin-top:3px;line-height:1.45}
+.ex .idx{font-family:var(--sans);font-size:11.5px;letter-spacing:.06em;font-weight:500;color:var(--ink-3);margin-bottom:2px}
 .ex .name{font-family:var(--serif);font-size:18px;font-weight:500;line-height:1.35;letter-spacing:-.005em}
 .ex .meta{font-size:13px;color:var(--ink-2);margin-top:5px;font-variant-numeric:tabular-nums}
 .ex .last{font-size:12px;color:var(--ink-3);margin-top:4px;font-variant-numeric:tabular-nums}
 .tags{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
 .tag{display:inline-block;font-size:11.5px;padding:2px 9px;border-radius:99px;line-height:1.55}
-.tag.warn{background:var(--amber-soft);color:var(--amber)}
+.tag.warn{background:var(--amber-soft);color:#7E4F0B;font-weight:500}
 .tag.sub{background:#EEEBE2;color:var(--ink-2)}
 .tag.ok{background:var(--olive-soft);color:var(--olive)}
 .inputs{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:14px}
@@ -151,12 +152,13 @@ details[open] summary::after{transform:rotate(45deg)}
 .field input{
   width:100%;background:var(--bg);border:1px solid var(--line-2);border-radius:var(--r-sm);
   color:var(--ink);padding:11px 12px;font-size:16px;text-align:center;outline:none;transition:.15s;
-  font-variant-numeric:tabular-nums;
+  font-variant-numeric:tabular-nums;font-weight:500;
 }
+.field input::placeholder{color:#B5B0A2;font-weight:400}
 .field input:focus{border-color:var(--clay);background:#fff}
 .chk{
   flex:none;width:42px;height:42px;border-radius:50%;border:1.5px solid var(--line-2);background:var(--paper);
-  color:transparent;font-size:18px;transition:.15s;
+  color:transparent;font-size:18px;border-color:#B9B3A1;transition:.15s;
 }
 .chk.on{background:var(--olive);border-color:var(--olive);color:#fff}
 .chk:active{transform:scale(.92)}
@@ -221,7 +223,7 @@ select{
 /* ---------- Navegação inferior ---------- */
 nav{
   position:fixed;bottom:0;left:0;right:0;z-index:20;
-  background:rgba(251,250,246,.94);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);
+  background:var(--paper);box-shadow:0 -6px 16px rgba(60,50,30,.05);
   border-top:1px solid var(--line);padding:6px 8px calc(6px + var(--safe-b));
 }
 nav .in{max-width:680px;margin:0 auto;display:flex}
@@ -655,7 +657,7 @@ function renderDayHeader() {
       el("div", { class: "row" },
         el("div", {},
           el("h3", {}, `Treino ${ui.workout} — ${w.name}`),
-          el("div", { class: "dim" }, `${w.day} · ${fmtDate(draft.date)} · ${done}/${total} concluídos`)),
+          el("div", { class: "dim" }, `Dia: ${w.day} · hoje ${fmtDate(draft.date)} · ${done}/${total} feitos`)),
       ),
       el("div", { class: "progress" }, el("i", { style: { width: (total ? done / total * 100 : 0) + "%" } })),
     ),
@@ -703,7 +705,8 @@ function renderExercises() {
       el("div", { class: "top" },
         el("div", {},
           el("div", { class: "idx" }, `${i + 1}/${w.exercises.length}`),
-          el("div", { class: "name" }, ex.n),
+          el("div", { class: "name" }, String(ex.n).split(" (")[0]),
+          String(ex.n).includes(" (") ? el("div", { class: "cue" }, String(ex.n).slice(String(ex.n).indexOf(" (") + 2).replace(/\)$/, "")) : null,
           el("div", { class: "meta" }, `${ex.s || ""}${ex.rest ? " · descanso " + ex.rest : ""}`),
           prev ? el("div", { class: "last" }, `última: ${fmtKg(prev.kg)}${prev.reps ? " × " + prev.reps : ""} (${fmtDate(prev.date, false)})`) : null,
           (ex.caution || ex.sub) ? el("div", { class: "tags" },

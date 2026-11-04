@@ -717,7 +717,7 @@ function renderExercises() {
   const last = lastLoads();
   mount($("exerciseList"), w.exercises.map((ex, i) => {
     const st = draft.ex[ex.n] || {};
-    const prev = last[ex.n];
+    const prev = last[ex.n] || null; // mês novo: exercícios sem histórico → sem referência, sem erro
     const repsHint = String(ex.s || "").split("×")[1] || "";
     const parts = bisetParts(ex);
 

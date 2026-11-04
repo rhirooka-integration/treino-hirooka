@@ -101,6 +101,8 @@ main{max-width:720px;margin:0 auto;padding:16px 14px}
 }
 .warmup{font-size:13px;line-height:1.6;color:var(--dim)}
 .warmup li{margin-left:18px;margin-top:3px}
+.demo{display:inline-block;margin-top:4px;font-size:12px;color:var(--accent-2);text-decoration:none}
+.demo:active{opacity:.6}
 details summary{cursor:pointer;list-style:none;display:flex;align-items:center;gap:8px}
 details summary::-webkit-details-marker{display:none}
 details summary::after{content:"›";margin-left:auto;color:var(--dim);font-size:20px;transition:.2s}
@@ -303,7 +305,9 @@ nav button.on{color:var(--accent);background:rgba(110,231,183,.07)}
 /* ==== PROGRAM:START ==== */
 /* ================= PROGRAMA =================
    Mês 1 — Nov/2026. Restrições de joelho e lombar: sem agachamento profundo pesado,
-   sem stiff pesado, sem extensora pesada; amplitude protegida; core anti-extensão. */
+   sem stiff pesado, sem extensora pesada; amplitude protegida; core anti-extensão.
+   AQUECIMENTO alterna por mês: mês ímpar = foco mobilidade, mês par = foco core
+   (anti-extensão/anti-rotação). Este mês: mobilidade. */
 const PROGRAM = {
   month: "2026-11",
   title: "Mês 1 — Base & Proteção",
@@ -614,7 +618,8 @@ function selectWorkout(k) {
 /** Quebra o texto de aquecimento ("a · b · c") em itens de lista. */
 function warmupList(text) {
   const parts = String(text || "").split(/\s+·\s+/).filter(Boolean);
-  return el("ul", { class: "warmup" }, parts.map(p => el("li", {}, p)));
+  return el("ul", { class: "warmup" }, parts.map(p =>
+    el("li", {}, p + " ", el("a", { class: "demo", href: demoUrl(p), target: "_blank", rel: "noopener noreferrer" }, "▶"))));
 }
 
 function renderDayHeader() {
@@ -638,6 +643,12 @@ function renderDayHeader() {
   );
 }
 
+/* Link "como fazer": busca no YouTube com o nome limpo do exercício
+   (funciona sempre, sem manter IDs de vídeo) */
+function demoUrl(name) {
+  const q = String(name).replace(/\([^)]*\)/g, "").replace(/\s+/g, " ").trim();
+  return "https://www.youtube.com/results?search_query=" + encodeURIComponent(q + " execução correta");
+}
 function renderExercises() {
   const w = PROGRAM.workouts[ui.workout];
   const last = lastLoads();
@@ -674,6 +685,7 @@ function renderExercises() {
           (ex.caution || ex.sub) ? el("div", { class: "tags" },
             ex.caution ? el("span", { class: "tag warn" }, "atenção: " + ex.caution) : null,
             ex.sub ? el("span", { class: "tag sub" }, ex.sub) : null) : null,
+          el("a", { class: "demo", href: demoUrl(ex.n), target: "_blank", rel: "noopener noreferrer" }, "▶ como fazer"),
         ),
         chk,
       ),
@@ -785,6 +797,7 @@ function renderProgram() {
           warmupList(w.warmup)),
         w.exercises.map((ex, i) => el("div", { class: "li" },
           el("div", {},
+            el("a", { class: "demo", href: demoUrl(ex.n), target: "_blank", rel: "noopener noreferrer" }, "▶"),
             el("div", {}, `${i + 1}. ${ex.n}`),
             (ex.caution || ex.sub || ex.rest) ? el("div", { class: "tags" },
               ex.rest ? el("span", { class: "tag ok" }, "descanso " + ex.rest) : null,

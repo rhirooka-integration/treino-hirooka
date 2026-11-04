@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="64 64 384 384" width="512" height="512">
+  <rect width="512" height="512" fill="#F5F3EC"/>
+  <rect x="64" y="64" width="384" height="384" rx="72" fill="#FBFAF6" stroke="#E4E0D4" stroke-width="4"/>
+  <!-- anilha / halter estilizado -->
+  <g stroke="#C2613F" stroke-width="26" stroke-linecap="round">
+    <line x1="150" y1="256" x2="362" y2="256"/>
+  </g>
+  <g fill="#1F1E1B">
+    <rect x="118" y="176" width="34" height="160" rx="14"/>
+    <rect x="360" y="176" width="34" height="160" rx="14"/>
+    <rect x="86"  y="206" width="22" height="100" rx="10"/>
+    <rect x="404" y="206" width="22" height="100" rx="10"/>
+  </g>
+</svg>

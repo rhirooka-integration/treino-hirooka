@@ -146,6 +146,25 @@ details[open] summary::after{transform:rotate(45deg)}
 .ex .name{font-family:var(--serif);font-size:18px;font-weight:500;line-height:1.35;letter-spacing:-.005em}
 .ex .meta{font-size:13px;color:var(--ink-2);margin-top:5px;font-variant-numeric:tabular-nums}
 .ex .last{font-size:12px;color:var(--ink-3);margin-top:4px;font-variant-numeric:tabular-nums}
+/* Referência da sessão anterior: badge visível + campo preenchível */
+.ex .lastref{
+  display:inline-flex;align-items:baseline;gap:6px;margin-top:6px;padding:4px 10px;
+  background:var(--clay-soft);color:#8A4526;border-radius:99px;
+  font-size:12.5px;font-weight:500;font-variant-numeric:tabular-nums;line-height:1.4;
+}
+.ex .lastref small{font-weight:400;color:#A0695A}
+/* Bloco de campos por parte do bisset */
+.parts{display:flex;flex-direction:column;gap:10px;margin-top:14px}
+.part{
+  border:1px solid var(--line);border-radius:var(--r-sm);padding:10px 12px 12px;
+  background:#FDFCF9;
+}
+.part .pname{
+  font-size:12px;font-weight:600;color:var(--clay);letter-spacing:.01em;margin-bottom:8px;
+  display:flex;align-items:center;gap:6px;
+}
+.part .pname::before{content:"";width:5px;height:5px;border-radius:50%;background:var(--clay)}
+.part .inputs{margin-top:0}
 .tags{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
 .tag{display:inline-block;font-size:11.5px;padding:2px 9px;border-radius:99px;line-height:1.55}
 .tag.warn{background:var(--amber-soft);color:#7E4F0B;font-weight:500}
@@ -608,7 +627,8 @@ let draft = lsGet(LS.draft, null);
 if (!draft || draft.date !== today() || !PROGRAM.workouts[draft.workout]) draft = emptyDraft(ui.workout);
 else ui.workout = draft.workout;
 const saveDraft = () => lsSet(LS.draft, draft);
-const draftHasData = () => Object.values(draft.ex).some(v => v.done || v.load || v.reps) || !!draft.fb.notes;
+const draftHasData = () => Object.values(draft.ex).some(v =>
+  v.done || v.load || v.reps || v.load0 || v.reps0 || v.load1 || v.reps1) || !!draft.fb.notes;
 
 /** Última carga registrada por exercício (para sugerir no input). */
 function lastLoads() {
@@ -621,6 +641,19 @@ function lastLoads() {
     if (!prev || String(r.session_date) >= prev.date) map[r.exercise] = { date: String(r.session_date), kg, reps: r.reps };
   }
   return map;
+}
+
+/** Detecta bisset/superset no nome ("A + B (superset)") e devolve as duas partes. */
+function bisetParts(ex) {
+  const m = String(ex.n).match(/^(.*?)\s*\+\s*(.*?)\s*\((?:bi[- ]?set|superset)\)\s*$/i);
+  if (!m) return null;
+  // Sugestão de reps por parte, a partir do esquema "3×12 cada" / "2×15 cada" / "3×10/lado + 3×20–30s/lado"
+  const s = String(ex.s || "");
+  let hints = null;
+  const plus = s.split(/\s*\+\s*/);
+  if (plus.length === 2) hints = plus.map(p => (p.split("×")[1] || "").trim());
+  else if (/cada/i.test(s)) { const h = (s.split("×")[1] || "").replace(/\s*cada/i, "").trim(); hints = [h, h]; }
+  return [ { name: m[1].trim(), hint: hints?.[0] || "" }, { name: m[2].trim(), hint: hints?.[1] || "" } ];
 }
 
 /* =====================================================================
@@ -686,6 +719,7 @@ function renderExercises() {
     const st = draft.ex[ex.n] || {};
     const prev = last[ex.n];
     const repsHint = String(ex.s || "").split("×")[1] || "";
+    const parts = bisetParts(ex);
 
     const update = (field, value) => {
       draft.ex[ex.n] = Object.assign({}, draft.ex[ex.n], { [field]: value });
@@ -705,6 +739,33 @@ function renderExercises() {
       },
     }, "✓");
 
+    // Campos de carga/reps: simples ou separados por parte do bisset
+    let inputsBlock;
+    if (parts) {
+      inputsBlock = el("div", { class: "parts" }, parts.map((p, pi) => {
+        const pl = last[`${ex.n} ▸ ${p.name}`];
+        return el("div", { class: "part" },
+          el("div", { class: "pname" }, p.name,
+            pl ? el("span", { style: { fontWeight: 400, color: "var(--ink-3)" } },
+              ` · última ${fmtKg(pl.kg)}${pl.reps ? " × " + pl.reps : ""}`) : null),
+          el("div", { class: "inputs" },
+            el("label", { class: "field" }, el("span", {}, "carga (kg)"),
+              el("input", { type: "text", inputmode: "decimal", placeholder: pl ? String(pl.kg).replace(".", ",") : "kg",
+                value: st[`load${pi}`] || "", oninput: e => update(`load${pi}`, e.target.value.trim()) })),
+            el("label", { class: "field" }, el("span", {}, "reps feitas"),
+              el("input", { type: "text", inputmode: "numeric", placeholder: p.hint || "reps",
+                value: st[`reps${pi}`] || "", oninput: e => update(`reps${pi}`, e.target.value.trim()) }))));
+      }));
+    } else {
+      inputsBlock = el("div", { class: "inputs" },
+        el("label", { class: "field" }, el("span", {}, "carga (kg)"),
+          el("input", { type: "text", inputmode: "decimal", placeholder: prev ? String(prev.kg).replace(".", ",") : (ex.load || "kg"),
+            value: st.load || "", oninput: e => update("load", e.target.value.trim()) })),
+        el("label", { class: "field" }, el("span", {}, "reps feitas"),
+          el("input", { type: "text", inputmode: "numeric", placeholder: repsHint || "reps",
+            value: st.reps || "", oninput: e => update("reps", e.target.value.trim()) })));
+    }
+
     append(card, [
       el("div", { class: "top" },
         el("div", {},
@@ -712,7 +773,7 @@ function renderExercises() {
           el("div", { class: "name" }, String(ex.n).split(" (")[0]),
           String(ex.n).includes(" (") ? el("div", { class: "cue" }, String(ex.n).slice(String(ex.n).indexOf(" (") + 2).replace(/\)$/, "")) : null,
           el("div", { class: "meta" }, `${ex.s || ""}${ex.rest ? " · descanso " + ex.rest : ""}`),
-          prev ? el("div", { class: "last" }, `última: ${fmtKg(prev.kg)}${prev.reps ? " × " + prev.reps : ""} (${fmtDate(prev.date, false)})`) : null,
+          prev ? el("div", { class: "lastref" }, "sessão anterior: ", el("b", {}, `${fmtKg(prev.kg)}${prev.reps ? " × " + prev.reps : ""}`), el("small", {}, `(${fmtDate(prev.date, false)})`)) : null,
           (ex.caution || ex.sub) ? el("div", { class: "tags" },
             ex.caution ? el("span", { class: "tag warn" }, "atenção: " + ex.caution) : null,
             ex.sub ? el("span", { class: "tag sub" }, ex.sub) : null) : null,
@@ -720,14 +781,7 @@ function renderExercises() {
         ),
         chk,
       ),
-      el("div", { class: "inputs" },
-        el("label", { class: "field" }, el("span", {}, "carga (kg)"),
-          el("input", { type: "text", inputmode: "decimal", placeholder: prev ? String(prev.kg) : (ex.load || "kg"),
-            value: st.load || "", oninput: e => update("load", e.target.value.trim()) })),
-        el("label", { class: "field" }, el("span", {}, "reps feitas"),
-          el("input", { type: "text", inputmode: "numeric", placeholder: repsHint || "reps",
-            value: st.reps || "", oninput: e => update("reps", e.target.value.trim()) })),
-      ),
+      inputsBlock,
     ]);
     return card;
   }));
@@ -764,15 +818,29 @@ function renderTreino() {
 /** Salva a sessão: monta linhas de logs + feedback, enfileira e tenta enviar. */
 async function saveSession() {
   const w = PROGRAM.workouts[ui.workout];
-  const rows = w.exercises
-    .filter(ex => { const s = draft.ex[ex.n]; return s && (s.done || s.load || s.reps); })
-    .map(ex => {
-      const s = draft.ex[ex.n];
-      return {
+  const rows = [];
+  for (const ex of w.exercises) {
+    const s = draft.ex[ex.n];
+    if (!s) continue;
+    const parts = bisetParts(ex);
+    if (parts) {
+      // Bisset: uma linha por parte, com a carga/reps dela
+      const any = s.done || s.load0 || s.reps0 || s.load1 || s.reps1;
+      if (!any) continue;
+      parts.forEach((p, pi) => {
+        rows.push({
+          session_date: draft.date, workout: ui.workout, exercise: `${ex.n} ▸ ${p.name}`,
+          sets: ex.s || null, reps: s[`reps${pi}`] || null, load_kg: toNum(s[`load${pi}`]), done: !!s.done,
+        });
+      });
+    } else {
+      if (!(s.done || s.load || s.reps)) continue;
+      rows.push({
         session_date: draft.date, workout: ui.workout, exercise: ex.n,
         sets: ex.s || null, reps: s.reps || null, load_kg: toNum(s.load), done: !!s.done,
-      };
-    });
+      });
+    }
+  }
   if (!rows.length) { toast("Marca ou preenche pelo menos um exercício", true); return; }
 
   // Aviso de sessão duplicada (mesmo dia + mesmo treino)

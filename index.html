@@ -1,0 +1,1027 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#0a0a0f">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="color-scheme" content="dark">
+<title>Treino</title>
+<!-- Única dependência externa: supabase-js v2 (jsDelivr). Se falhar (offline), o app segue em modo local com fila. -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+/* =====================================================================
+   ESTILO — dark glass, mobile-first
+   ===================================================================== */
+:root{
+  --bg:#0a0a0f;
+  --glass:rgba(255,255,255,.055); --glass-2:rgba(255,255,255,.09);
+  --border:rgba(255,255,255,.11); --border-2:rgba(255,255,255,.2);
+  --txt:#f2f2f7; --dim:#9a9aa8; --dim-2:#6b6b78;
+  --accent:#6ee7b7; --accent-2:#818cf8; --warn:#fbbf24; --danger:#f87171;
+  --r:18px; --r-sm:12px;
+  --nav-h:64px;
+  --safe-t:env(safe-area-inset-top,0px); --safe-b:env(safe-area-inset-bottom,0px);
+}
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html{-webkit-text-size-adjust:100%}
+body{
+  font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","Inter",system-ui,sans-serif;
+  background:var(--bg);color:var(--txt);min-height:100vh;min-height:100dvh;line-height:1.4;
+  background-image:
+    radial-gradient(600px 400px at 10% -5%, rgba(129,140,248,.18), transparent 60%),
+    radial-gradient(500px 400px at 100% 20%, rgba(110,231,183,.10), transparent 60%),
+    radial-gradient(700px 500px at 50% 110%, rgba(129,140,248,.10), transparent 60%);
+  background-attachment:fixed;
+  padding-bottom:calc(var(--nav-h) + 24px + var(--safe-b));
+}
+button,input,select,textarea{font:inherit;color:inherit}
+button{cursor:pointer}
+:focus-visible{outline:2px solid var(--accent-2);outline-offset:2px}
+
+/* ---------- Header ---------- */
+header{
+  position:sticky;top:0;z-index:10;
+  backdrop-filter:blur(20px) saturate(140%);-webkit-backdrop-filter:blur(20px) saturate(140%);
+  background:rgba(10,10,15,.72);border-bottom:1px solid var(--border);
+  padding:calc(10px + var(--safe-t)) 18px 12px;
+}
+.hdr{max-width:720px;margin:0 auto;display:flex;align-items:center;justify-content:space-between;gap:12px}
+header h1{font-size:20px;font-weight:750;letter-spacing:-.02em}
+header .sub{font-size:12px;color:var(--dim);margin-top:2px}
+
+/* Badge de sincronização: online / offline / pendente / sincronizando */
+.sync{
+  display:inline-flex;align-items:center;gap:6px;font-size:11.5px;font-weight:650;
+  padding:5px 10px;border-radius:99px;border:1px solid;white-space:nowrap;background:none;
+}
+.sync::before{content:"";width:7px;height:7px;border-radius:50%;background:currentColor}
+.sync.online{color:var(--accent);border-color:rgba(110,231,183,.35);background:rgba(110,231,183,.1)}
+.sync.offline{color:var(--danger);border-color:rgba(248,113,113,.35);background:rgba(248,113,113,.1)}
+.sync.pending{color:var(--warn);border-color:rgba(251,191,36,.35);background:rgba(251,191,36,.1)}
+.sync.syncing{color:var(--accent-2);border-color:rgba(129,140,248,.35);background:rgba(129,140,248,.1)}
+.sync.syncing::before{animation:pulse 1s infinite}
+@keyframes pulse{50%{opacity:.25}}
+
+/* ---------- Layout ---------- */
+main{max-width:720px;margin:0 auto;padding:16px 14px}
+.tab{display:none}.tab.on{display:block;animation:fade .22s ease}
+@keyframes fade{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+.card{
+  background:var(--glass);border:1px solid var(--border);border-radius:var(--r);
+  padding:16px;margin-bottom:12px;
+  backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);
+  box-shadow:0 8px 30px rgba(0,0,0,.35), inset 0 1px 0 rgba(255,255,255,.04);
+}
+.card h3{font-size:15.5px;font-weight:680;margin-bottom:4px;letter-spacing:-.01em}
+.dim{color:var(--dim);font-size:13px;line-height:1.55}
+.section-title{font-size:11.5px;font-weight:750;text-transform:uppercase;letter-spacing:.09em;color:var(--dim);margin:22px 4px 10px}
+.empty{text-align:center;padding:28px 16px;color:var(--dim);font-size:13.5px}
+.row{display:flex;align-items:center;gap:10px}
+.spacer{flex:1}
+
+/* ---------- Seletor A/B/C ---------- */
+.seg{display:grid;grid-auto-flow:column;grid-auto-columns:1fr;gap:8px;margin-bottom:14px}
+.seg button{
+  padding:11px 6px;border-radius:14px;background:var(--glass);border:1px solid var(--border);
+  color:var(--dim);transition:.18s;display:flex;flex-direction:column;align-items:center;gap:2px;
+}
+.seg button b{font-size:18px;font-weight:800;letter-spacing:-.02em}
+.seg button small{font-size:11px}
+.seg button.on{
+  background:linear-gradient(135deg,rgba(110,231,183,.22),rgba(129,140,248,.22));
+  color:var(--txt);border-color:rgba(110,231,183,.45);
+}
+
+/* ---------- Blocos informativos ---------- */
+.note{
+  font-size:12.5px;color:#e9dcc0;background:rgba(251,191,36,.07);border:1px solid rgba(251,191,36,.22);
+  border-radius:var(--r-sm);padding:11px 13px;line-height:1.55;margin-bottom:12px;
+}
+.warmup{font-size:13px;line-height:1.6;color:var(--dim)}
+.warmup li{margin-left:18px;margin-top:3px}
+details summary{cursor:pointer;list-style:none;display:flex;align-items:center;gap:8px}
+details summary::-webkit-details-marker{display:none}
+details summary::after{content:"›";margin-left:auto;color:var(--dim);font-size:20px;transition:.2s}
+details[open] summary::after{transform:rotate(90deg)}
+
+/* ---------- Progresso da sessão ---------- */
+.progress{height:6px;border-radius:99px;background:rgba(255,255,255,.07);overflow:hidden;margin-top:10px}
+.progress > i{display:block;height:100%;width:0;background:linear-gradient(90deg,var(--accent),var(--accent-2));transition:width .3s}
+
+/* ---------- Card de exercício ---------- */
+.ex{border-left:3px solid transparent;transition:.2s}
+.ex.done{border-left-color:var(--accent);background:rgba(110,231,183,.05)}
+.ex .top{display:flex;justify-content:space-between;align-items:flex-start;gap:12px}
+.ex .idx{font-size:11px;color:var(--dim-2);font-weight:700;margin-bottom:2px}
+.ex .name{font-size:15px;font-weight:650;line-height:1.35}
+.ex .meta{font-size:12.5px;color:var(--dim);margin-top:4px}
+.ex .last{font-size:11.5px;color:var(--accent-2);margin-top:4px}
+.tags{display:flex;flex-wrap:wrap;gap:5px;margin-top:7px}
+.tag{display:inline-block;font-size:10.5px;padding:2px 8px;border-radius:99px;line-height:1.5}
+.tag.warn{background:rgba(251,191,36,.12);color:var(--warn);border:1px solid rgba(251,191,36,.3)}
+.tag.sub{background:rgba(129,140,248,.12);color:var(--accent-2);border:1px solid rgba(129,140,248,.3)}
+.tag.ok{background:rgba(110,231,183,.12);color:var(--accent);border:1px solid rgba(110,231,183,.3)}
+.inputs{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:12px}
+.field{display:flex;flex-direction:column;gap:4px}
+.field span{font-size:11px;color:var(--dim);padding-left:4px}
+.field input{
+  width:100%;background:rgba(0,0,0,.35);border:1px solid var(--border);border-radius:var(--r-sm);
+  color:var(--txt);padding:11px 12px;font-size:16px;text-align:center;outline:none;transition:.15s;
+}
+.field input:focus{border-color:var(--accent);background:rgba(0,0,0,.5)}
+.chk{
+  flex:none;width:46px;height:46px;border-radius:14px;border:1px solid var(--border);background:var(--glass);
+  color:var(--dim);font-size:20px;transition:.15s;
+}
+.chk.on{background:rgba(110,231,183,.2);border-color:var(--accent);color:var(--accent)}
+.chk:active{transform:scale(.92)}
+
+/* ---------- Botões ---------- */
+.btn{
+  width:100%;padding:15px;border-radius:14px;border:none;font-size:15.5px;font-weight:750;
+  background:linear-gradient(135deg,#34d399,#818cf8);color:#0a0a0f;transition:.15s;margin-top:8px;
+}
+.btn:active{transform:scale(.98)}
+.btn:disabled{opacity:.5;pointer-events:none}
+.btn.ghost{background:var(--glass);color:var(--txt);border:1px solid var(--border);font-weight:600}
+.btn.sm{width:auto;padding:8px 14px;font-size:13px;margin:0;border-radius:10px}
+
+/* ---------- Sliders de feedback ---------- */
+.slider{margin:6px 0 16px}
+.slider .lbl{display:flex;justify-content:space-between;align-items:baseline;font-size:13.5px;margin-bottom:6px}
+.slider .lbl b{font-size:17px;font-variant-numeric:tabular-nums}
+.slider .hint{font-size:11px;color:var(--dim-2);display:flex;justify-content:space-between;margin-top:2px}
+input[type=range]{width:100%;accent-color:var(--accent);height:32px}
+input[type=range].hot{accent-color:var(--danger)}
+input[type=range].mid{accent-color:var(--warn)}
+textarea{
+  width:100%;background:rgba(0,0,0,.35);border:1px solid var(--border);border-radius:var(--r-sm);color:var(--txt);
+  padding:12px;font-size:15px;min-height:80px;resize:vertical;outline:none;
+}
+textarea:focus{border-color:var(--accent)}
+select{
+  width:100%;background:rgba(0,0,0,.35);border:1px solid var(--border);border-radius:var(--r-sm);
+  padding:12px;font-size:15px;outline:none;-webkit-appearance:none;appearance:none;
+}
+select option{background:#16161d}
+
+/* ---------- Listas ---------- */
+.li{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;padding:10px 2px;border-bottom:1px solid rgba(255,255,255,.05);font-size:13.5px}
+.li:last-child{border-bottom:none}
+.li > b{white-space:nowrap;font-weight:650;font-variant-numeric:tabular-nums}
+.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:12px}
+.stat{background:rgba(0,0,0,.25);border:1px solid var(--border);border-radius:var(--r-sm);padding:10px;text-align:center}
+.stat b{display:block;font-size:17px;font-variant-numeric:tabular-nums}
+.stat span{font-size:11px;color:var(--dim)}
+.up{color:var(--accent)}.down{color:var(--danger)}
+
+/* ---------- Gráfico SVG ---------- */
+.chart{width:100%;height:auto;display:block;margin-top:10px;overflow:visible}
+.chart .grid{stroke:rgba(255,255,255,.07);stroke-width:1}
+.chart .axis{fill:var(--dim-2);font-size:10px}
+.chart .line{fill:none;stroke:url(#lg);stroke-width:2.5;stroke-linejoin:round;stroke-linecap:round}
+.chart .area{fill:url(#ag)}
+.chart .pt{fill:var(--bg);stroke:var(--accent);stroke-width:2}
+.chart .val{fill:var(--txt);font-size:10px;font-weight:600}
+.mini{display:flex;align-items:center;justify-content:space-between;gap:10px;width:100%;text-align:left;background:none;border:none;padding:10px 2px;border-bottom:1px solid rgba(255,255,255,.05)}
+.mini:last-child{border-bottom:none}
+.mini .n{font-size:13.5px;flex:1}
+.mini .v{font-size:13px;font-weight:650;white-space:nowrap}
+
+/* ---------- Navegação inferior ---------- */
+nav{
+  position:fixed;bottom:0;left:0;right:0;z-index:20;
+  background:rgba(12,12,18,.86);backdrop-filter:blur(20px) saturate(140%);-webkit-backdrop-filter:blur(20px) saturate(140%);
+  border-top:1px solid var(--border);padding:6px 6px calc(6px + var(--safe-b));
+}
+nav .in{max-width:720px;margin:0 auto;display:flex}
+nav button{
+  flex:1;background:none;border:none;color:var(--dim);font-size:11px;font-weight:600;
+  padding:6px 0 4px;display:flex;flex-direction:column;align-items:center;gap:3px;border-radius:12px;transition:.15s;
+}
+nav button .ico{font-size:20px;line-height:1}
+nav button.on{color:var(--accent);background:rgba(110,231,183,.07)}
+
+/* ---------- Toast ---------- */
+.toast{
+  position:fixed;top:calc(14px + var(--safe-t));left:50%;transform:translateX(-50%) translateY(-120px);
+  background:rgba(20,24,32,.96);border:1px solid rgba(110,231,183,.4);color:var(--accent);
+  padding:11px 20px;border-radius:99px;font-size:13.5px;font-weight:600;z-index:99;transition:.3s;
+  backdrop-filter:blur(10px);max-width:calc(100% - 28px);text-align:center;
+}
+.toast.err{border-color:rgba(248,113,113,.45);color:var(--danger)}
+.toast.show{transform:translateX(-50%) translateY(0)}
+
+/* ---------- Telas maiores ---------- */
+@media (min-width:720px){
+  main{padding:24px 18px}
+  .ex-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+  .ex-grid .card{margin-bottom:0}
+}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="hdr">
+    <div>
+      <h1>Treino</h1>
+      <div class="sub" id="headerSub"></div>
+    </div>
+    <button class="sync offline" id="syncBadge" type="button" title="Toque para sincronizar">offline</button>
+  </div>
+</header>
+
+<main>
+  <!-- ============ ABA: TREINO DO DIA ============ -->
+  <section class="tab on" id="tab-treino" aria-label="Treino do dia">
+    <div class="seg" id="workoutSeg" role="tablist"></div>
+    <div id="dayHeader"></div>
+    <div class="ex-grid" id="exerciseList"></div>
+
+    <div class="section-title">Feedback da sessão</div>
+    <div class="card">
+      <div class="slider">
+        <div class="lbl"><span>Esforço percebido (RPE)</span><b id="rpeV">7</b></div>
+        <input type="range" id="rpe" min="1" max="10" value="7">
+        <div class="hint"><span>1 leve</span><span>10 máximo</span></div>
+      </div>
+      <div class="slider">
+        <div class="lbl"><span>Dor no joelho</span><b id="kneeV">0</b></div>
+        <input type="range" id="knee" min="0" max="10" value="0">
+        <div class="hint"><span>0 nada</span><span>limite: 3</span><span>10</span></div>
+      </div>
+      <div class="slider">
+        <div class="lbl"><span>Dor lombar</span><b id="backV">0</b></div>
+        <input type="range" id="back" min="0" max="10" value="0">
+        <div class="hint"><span>0 nada</span><span>limite: 3</span><span>10</span></div>
+      </div>
+      <textarea id="notes" placeholder="Notas (opcional): o que doeu, o que fluiu, carga fácil/pesada…"></textarea>
+      <button class="btn" id="saveBtn" type="button">Salvar sessão</button>
+      <button class="btn ghost" id="resetBtn" type="button">Limpar sessão</button>
+    </div>
+  </section>
+
+  <!-- ============ ABA: PROGRAMA ============ -->
+  <section class="tab" id="tab-programa" aria-label="Programa do mês">
+    <div id="programView"></div>
+  </section>
+
+  <!-- ============ ABA: PROGRESSO ============ -->
+  <section class="tab" id="tab-progresso" aria-label="Progresso">
+    <div id="progressView"></div>
+  </section>
+
+  <!-- ============ ABA: HISTÓRICO ============ -->
+  <section class="tab" id="tab-historico" aria-label="Histórico">
+    <div id="histView"></div>
+  </section>
+</main>
+
+<nav>
+  <div class="in">
+    <button type="button" data-tab="treino" class="on"><span class="ico">🏋️</span>Treino</button>
+    <button type="button" data-tab="programa"><span class="ico">📋</span>Programa</button>
+    <button type="button" data-tab="progresso"><span class="ico">📈</span>Progresso</button>
+    <button type="button" data-tab="historico"><span class="ico">🗓</span>Histórico</button>
+  </div>
+</nav>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<!-- =====================================================================
+     PROGRAMA DO MÊS — ÚNICO BLOCO QUE MUDA ENTRE VERSÕES.
+     O processo automático substitui APENAS o conteúdo entre os marcadores
+     PROGRAM:START e PROGRAM:END. Formato esperado:
+       { month:"AAAA-MM", title, weeks, caution, saturday,
+         workouts:{ <letra>:{ name, day, warmup, exercises:[{n,s,rest,load,caution?,sub?}] } } }
+     Todo texto do PROGRAM é tratado como texto puro (textContent) na UI.
+     ===================================================================== -->
+<script id="program-data">
+/* ==== PROGRAM:START ==== */
+/* ================= PROGRAMA =================
+   Mês 1 — Nov/2026. Restrições de joelho e lombar: sem agachamento profundo pesado,
+   sem stiff pesado, sem extensora pesada; amplitude protegida; core anti-extensão. */
+const PROGRAM = {
+  month: "2026-11",
+  title: "Mês 1 — Base & Proteção",
+  weeks: "Progressão dupla: completou todas as séries no topo da faixa com RPE ≤7 → sobe o menor incremento da máquina/halter e volta pro fundo da faixa. Nos exercícios de joelho/lombar, só progride se dor ≤3/10 durante, sem piora em 24h e slider ≤3 no feedback — e progride AMPLITUDE antes da carga (60°→70°→80° joelho, step 20→25→30cm). Semana 4: mesma carga da semana 3 no topo das reps; se houver ≥2 sessões com dor >3, deload de 30% do volume. Exercícios sem restrição (puxada, supino, remada, hip thrust, desenvolvimento): RPE 8 liberado a partir da semana 3.",
+  caution: "⚠️ Regras de proteção: joelho — dor ≤3/10 durante o exercício, se passar, reduz amplitude ou carga; lombar — dor irradiando pra perna = para e me avisa. Coluna sempre neutra. Antes de progredir carga em RDL e leg press, vale uma liberação rápida com orto/fisio.",
+  workouts: {
+    A: { name: "Inferior (protetor) + Core", day: "Segunda", warmup: "5 min bike leve · gato-camelo suave 5–8 ciclos · 90/90 quadril 2×6/lado · mini-band walk lateral 2×10/lado · isometria de quadríceps 2×20s · ponte de glúteo 2×10",
+      exercises: [
+        {n:"Leg press 45° (amplitude 0–60/70° de joelho, lombar e glúteo colados no encosto)", s:"3×12", rest:"60s", load:"", caution:"joelho+lombar", sub:"Quadril descolou do banco → encurta a amplitude"},
+        {n:"Cadeira extensora LEVE (arco 90°→45°, sem estender até o fim)", s:"3×15", rest:"45s", load:"", caution:"joelho RPE≤6"},
+        {n:"Cadeira flexora SENTADA", s:"3×12", rest:"60s", load:""},
+        {n:"Hip thrust (costelas baixas, retroversão no topo, pausa 1s — sem hiperextender lombar)", s:"3×12", rest:"60s", load:"", caution:"lombar"},
+        {n:"Cadeira abdutora + adutora (superset)", s:"2×15 cada", rest:"45s", load:""},
+        {n:"Panturrilha sentada ou no leg press", s:"3×15", rest:"45s", load:""},
+        {n:"Dead bug + prancha lateral (superset)", s:"3×10/lado + 3×20–30s/lado", rest:"30s", load:""},
+      ]},
+    B: { name: "Superiores", day: "Sexta", warmup: "Mobilidade escapular em V na parede 2×10 · torácica abertura no chão 2×6/lado · rotação externa com ELÁSTICO 2×10 · band pull-apart 2×15",
+      exercises: [
+        {n:"Puxada frontal pegada neutra", s:"3×12", rest:"60s", load:""},
+        {n:"Remada sentada na polia (tronco ereto, sem balançar)", s:"3×12", rest:"60s", load:"", caution:"lombar"},
+        {n:"Supino inclinado 30° com halteres ou máquina", s:"3×10–12", rest:"60s", load:""},
+        {n:"Desenvolvimento sentado com apoio de encosto", s:"3×10", rest:"60s", load:""},
+        {n:"Crucifixo inverso na polia + Pallof press (superset)", s:"3×12 leve + 3×12/lado", rest:"45s", load:""},
+        {n:"Rosca direta + tríceps na polia (superset)", s:"3×12 cada", rest:"45s", load:""},
+      ]},
+    C: { name: "Full body unilateral + Posterior", day: "Quarta", warmup: "5 min bike leve · gato-camelo suave 5–8 ciclos · mobilidade tornozelo (joelho na parede) 2×8/lado · hip hinge com bastão nas costas (cabeça, torácica e sacro tocando) 2×8 · deslizamento neural deitado 1×10",
+      exercises: [
+        {n:"Agachamento goblet (amplitude parcial ~60°, caixa se precisar)", s:"3×10 leve", rest:"60s", load:"", caution:"joelho", sub:"Se doer: leg press unilateral"},
+        {n:"RDL com halteres leve (coluna neutra, desce até meio da canela)", s:"3×10 leve RPE≤6", rest:"60s", load:"", caution:"lombar"},
+        {n:"Step-up 20–25cm (descida controlada 2–3s; 30cm só se dor ≤3/10 sem piora no dia seguinte)", s:"3×10/lado alternando sem pausa", rest:"60s", load:"", caution:"joelho"},
+        {n:"Remada serrote + Supino reto máquina (superset)", s:"3×10/lado + 3×8–10", rest:"60s", load:""},
+        {n:"Elevação lateral", s:"3×12", rest:"45s", load:""},
+        {n:"Circuito final: bird-dog 3×8/lado → prancha frontal 3×20–40s → farmer's walk 3×30–40m", s:"30s entre exercícios", rest:"—", load:"", caution:"core"},
+        {n:"McGill curl-up (no lugar de abdominal crunch)", s:"3×(5×10s isometria)", rest:"30s", load:"", caution:"lombar"},
+      ]},
+  },
+  saturday: "Sábado = dia de academia livre: escolhe e repete qualquer treino (A, B ou C — o que faltou na semana ou o teu favorito) + cardio forte opcional. CARDIO PERMITIDO: SkiErg, bike/assault bike, farmer's carry, sled pull, sled push leve (tronco alto, passos curtos), corrida em plano. PROIBIDO (proteção de joelho/lombar): sandbag lunge, wall ball profundo, burpee broad jump, remo ergômetro em volume (máx 500m, coluna neutra). Pilates 1×/semana na Ter ou Qui (mantém — ótimo pra joelho e lombar).",
+};
+/* ==== PROGRAM:END ==== */
+</script>
+
+<script id="app">
+"use strict";
+/* =====================================================================
+   CONFIG — Supabase (anon key é pública por design; RLS aberto, 1 usuário)
+   ===================================================================== */
+const SUPABASE_URL = "https://hmbsnwgjidncnsdzufqb.supabase.co";
+const SUPABASE_ANON_KEY = "sb_publishable_ZQ3WaUWWfrS5IS-kHNQIdQ_S-6gx3f_";
+
+/* Chaves de localStorage (v2 — não colidem com as da versão antiga) */
+const LS = {
+  queue:  "treino.v2.queue",   // fila offline: [{id, table, rows, tries, ts}]
+  cache:  "treino.v2.cache",   // espelho do banco: {logs:[], feedback:[], at}
+  draft:  "treino.v2.draft",   // sessão em andamento: {date, workout, ex:{nome:{load,reps,done}}, fb}
+  ui:     "treino.v2.ui",      // preferências: {tab, workout, chartEx}
+};
+
+/* =====================================================================
+   UTILITÁRIOS — escape, DOM seguro, datas, storage
+   ===================================================================== */
+
+/** Escapa texto para HTML. Uso de reserva: a UI é montada via el()/textContent,
+    então nenhum dado (do banco ou do PROGRAM) passa por innerHTML. */
+function esc(s) {
+  return String(s ?? "").replace(/[&<>"'`]/g, c => ({
+    "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;", "`": "&#96;"
+  })[c]);
+}
+
+/** Cria elemento de forma segura. Filhos string viram nós de texto (nunca HTML).
+    attrs: class, dataset, on<evento>, style (objeto) e atributos comuns. */
+function el(tag, attrs, ...children) {
+  const node = document.createElement(tag);
+  for (const [k, v] of Object.entries(attrs || {})) {
+    if (v == null || v === false) continue;
+    if (k === "class") node.className = v;
+    else if (k === "dataset") Object.assign(node.dataset, v);
+    else if (k === "style" && typeof v === "object") Object.assign(node.style, v);
+    else if (k.startsWith("on") && typeof v === "function") node.addEventListener(k.slice(2), v);
+    else if (k in node && typeof v !== "string") node[k] = v;
+    else node.setAttribute(k, v === true ? "" : String(v));
+  }
+  append(node, children);
+  return node;
+}
+function append(node, children) {
+  for (const c of children.flat(Infinity)) {
+    if (c == null || c === false) continue;
+    node.appendChild(c instanceof Node ? c : document.createTextNode(String(c)));
+  }
+  return node;
+}
+/** Substitui o conteúdo de um container sem innerHTML. */
+function mount(container, ...children) {
+  container.replaceChildren();
+  return append(container, children);
+}
+const $ = id => document.getElementById(id);
+
+/* SVG seguro (mesma ideia do el(), com namespace) */
+const SVG_NS = "http://www.w3.org/2000/svg";
+function svg(tag, attrs, ...children) {
+  const node = document.createElementNS(SVG_NS, tag);
+  for (const [k, v] of Object.entries(attrs || {})) if (v != null) node.setAttribute(k, String(v));
+  for (const c of children.flat()) {
+    if (c == null) continue;
+    node.appendChild(c instanceof Node ? c : document.createTextNode(String(c)));
+  }
+  return node;
+}
+
+/** Data local AAAA-MM-DD (não usa UTC: treino às 22h não vira "amanhã"). */
+function today() {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+const WEEKDAYS = ["dom", "seg", "ter", "qua", "qui", "sex", "sáb"];
+const MONTHS = ["janeiro","fevereiro","março","abril","maio","junho","julho","agosto","setembro","outubro","novembro","dezembro"];
+function fmtDate(iso, withWeekday = true) {
+  if (!iso || !/^\d{4}-\d{2}-\d{2}/.test(iso)) return String(iso ?? "");
+  const [y, m, d] = iso.slice(0, 10).split("-").map(Number);
+  const wd = WEEKDAYS[new Date(y, m - 1, d).getDay()];
+  return (withWeekday ? wd + " · " : "") + `${String(d).padStart(2, "0")}/${String(m).padStart(2, "0")}`;
+}
+function fmtMonth(ym) {
+  const m = /^(\d{4})-(\d{2})$/.exec(ym || "");
+  return m ? `${MONTHS[+m[2] - 1]} ${m[1]}` : "";
+}
+const fmtKg = n => (n == null || isNaN(n)) ? "—" : (Math.round(n * 10) / 10).toLocaleString("pt-BR") + " kg";
+const toNum = v => { const n = parseFloat(String(v ?? "").replace(",", ".")); return isFinite(n) ? n : null; };
+
+function lsGet(key, fallback) {
+  try { const v = JSON.parse(localStorage.getItem(key)); return v ?? fallback; }
+  catch { return fallback; }
+}
+function lsSet(key, val) {
+  try { localStorage.setItem(key, JSON.stringify(val)); } catch (e) { console.warn("localStorage cheio?", e); }
+}
+const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+
+let toastTimer = null;
+function toast(msg, isErr = false) {
+  const t = $("toast");
+  t.textContent = msg;
+  t.classList.toggle("err", isErr);
+  t.classList.add("show");
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.classList.remove("show"), 2600);
+}
+
+/* =====================================================================
+   SUPABASE + FILA OFFLINE
+   Toda escrita entra primeiro na fila (localStorage) e depois é enviada.
+   Se falhar (offline/erro), fica pendente e é reenviada quando a rede voltar.
+   ===================================================================== */
+let sb = null;
+try {
+  if (window.supabase && SUPABASE_URL && SUPABASE_ANON_KEY) {
+    sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, { auth: { persistSession: false } });
+  }
+} catch (e) { console.warn("Supabase indisponível:", e); }
+
+const Queue = {
+  all: () => lsGet(LS.queue, []),
+  save: q => { lsSet(LS.queue, q); updateBadge(); },
+  push(table, rows) {
+    const q = Queue.all();
+    q.push({ id: uid(), table, rows: Array.isArray(rows) ? rows : [rows], tries: 0, ts: Date.now() });
+    Queue.save(q);
+  },
+  size: () => Queue.all().length,
+};
+
+let syncing = false;
+let lastSyncError = null;
+
+/** Envia a fila em ordem. Para no primeiro erro de rede (mantém a ordem). */
+async function flushQueue() {
+  if (!sb || syncing || !navigator.onLine) { updateBadge(); return; }
+  let q = Queue.all();
+  if (!q.length) { updateBadge(); return; }
+  syncing = true; updateBadge();
+  try {
+    while (q.length) {
+      const item = q[0];
+      const { error } = await sb.from(item.table).insert(item.rows);
+      if (error) {
+        item.tries = (item.tries || 0) + 1;
+        lastSyncError = error.message || String(error);
+        Queue.save(q);
+        break;
+      }
+      // Sucesso: espelha no cache local para Progresso/Histórico não esperarem o próximo pull
+      const cache = lsGet(LS.cache, { logs: [], feedback: [] });
+      const key = item.table === "logs" ? "logs" : item.table === "feedback" ? "feedback" : null;
+      if (key) { cache[key] = (cache[key] || []).concat(item.rows); lsSet(LS.cache, cache); }
+      q.shift();
+      Queue.save(q);
+      lastSyncError = null;
+    }
+  } catch (e) {
+    lastSyncError = e.message || String(e);
+  } finally {
+    syncing = false;
+    updateBadge();
+  }
+}
+
+/** Puxa logs + feedback do banco para o cache local (fonte de Progresso/Histórico). */
+async function pullRemote() {
+  if (!sb || !navigator.onLine) return false;
+  try {
+    const [logsRes, fbRes] = await Promise.all([
+      sb.from("logs").select("id,ts,session_date,workout,exercise,sets,reps,load_kg,done").order("session_date").order("ts"),
+      sb.from("feedback").select("id,ts,session_date,workout,rpe,knee,back,notes").order("session_date").order("ts"),
+    ]);
+    if (logsRes.error || fbRes.error) throw (logsRes.error || fbRes.error);
+    lsSet(LS.cache, { logs: logsRes.data || [], feedback: fbRes.data || [], at: Date.now() });
+    lastSyncError = null;
+    return true;
+  } catch (e) {
+    lastSyncError = e.message || String(e);
+    return false;
+  } finally { updateBadge(); }
+}
+
+/** Badge: sincronizando > offline > pendente (n) > online */
+function updateBadge() {
+  const b = $("syncBadge");
+  const n = Queue.size();
+  let cls, txt, title;
+  if (syncing)                    { cls = "syncing"; txt = "sincronizando"; title = "Enviando dados…"; }
+  else if (!sb)                   { cls = "offline"; txt = n ? `local · ${n}` : "modo local"; title = "Supabase não carregou — dados ficam no aparelho."; }
+  else if (!navigator.onLine)     { cls = "offline"; txt = n ? `offline · ${n}` : "offline"; title = "Sem conexão. Tudo fica salvo na fila."; }
+  else if (n)                     { cls = "pending"; txt = `pendente · ${n}`; title = lastSyncError ? `Falha: ${lastSyncError}. Toque para tentar.` : "Toque para sincronizar."; }
+  else                            { cls = "online";  txt = "sincronizado"; title = "Tudo salvo no Supabase."; }
+  b.className = "sync " + cls;
+  b.textContent = txt;
+  b.title = title;
+}
+
+/** Dados combinados: cache do banco + itens ainda na fila (marcados como pendentes). */
+function getData() {
+  const cache = lsGet(LS.cache, { logs: [], feedback: [] });
+  const logs = (cache.logs || []).slice();
+  const feedback = (cache.feedback || []).slice();
+  for (const item of Queue.all()) {
+    const rows = item.rows.map(r => ({ ...r, _pending: true }));
+    if (item.table === "logs") logs.push(...rows);
+    else if (item.table === "feedback") feedback.push(...rows);
+  }
+  return { logs, feedback };
+}
+
+/* =====================================================================
+   ESTADO DA SESSÃO (rascunho persistido — recarregar a página não perde nada)
+   ===================================================================== */
+const WORKOUT_KEYS = Object.keys(PROGRAM.workouts || {});
+const ui = Object.assign({ tab: "treino", workout: WORKOUT_KEYS[0], chartEx: null }, lsGet(LS.ui, {}));
+if (!PROGRAM.workouts[ui.workout]) ui.workout = WORKOUT_KEYS[0];
+const saveUi = () => lsSet(LS.ui, ui);
+
+function emptyDraft(workout) {
+  return { date: today(), workout, ex: {}, fb: { rpe: 7, knee: 0, back: 0, notes: "" } };
+}
+let draft = lsGet(LS.draft, null);
+// Rascunho de outro dia ou de treino que não existe mais no PROGRAM é descartado
+if (!draft || draft.date !== today() || !PROGRAM.workouts[draft.workout]) draft = emptyDraft(ui.workout);
+else ui.workout = draft.workout;
+const saveDraft = () => lsSet(LS.draft, draft);
+const draftHasData = () => Object.values(draft.ex).some(v => v.done || v.load || v.reps) || !!draft.fb.notes;
+
+/** Última carga registrada por exercício (para sugerir no input). */
+function lastLoads() {
+  const map = {};
+  const { logs } = getData();
+  for (const r of logs) {
+    const kg = toNum(r.load_kg);
+    if (kg == null) continue;
+    const prev = map[r.exercise];
+    if (!prev || String(r.session_date) >= prev.date) map[r.exercise] = { date: String(r.session_date), kg, reps: r.reps };
+  }
+  return map;
+}
+
+/* =====================================================================
+   ABA TREINO DO DIA
+   ===================================================================== */
+function renderWorkoutSeg() {
+  mount($("workoutSeg"), WORKOUT_KEYS.map(k => {
+    const w = PROGRAM.workouts[k];
+    return el("button", {
+      type: "button", role: "tab", class: k === ui.workout ? "on" : "",
+      "aria-selected": String(k === ui.workout),
+      onclick: () => selectWorkout(k),
+    }, el("b", {}, k), el("small", {}, w.day || ""));
+  }));
+}
+
+function selectWorkout(k) {
+  if (k === ui.workout) return;
+  if (draftHasData() && !confirm("Trocar de treino descarta o que foi preenchido nesta sessão. Continuar?")) return;
+  ui.workout = k; saveUi();
+  draft = emptyDraft(k); saveDraft();
+  renderTreino();
+}
+
+/** Quebra o texto de aquecimento ("a · b · c") em itens de lista. */
+function warmupList(text) {
+  const parts = String(text || "").split(/\s+·\s+/).filter(Boolean);
+  return el("ul", { class: "warmup" }, parts.map(p => el("li", {}, p)));
+}
+
+function renderDayHeader() {
+  const w = PROGRAM.workouts[ui.workout];
+  const total = w.exercises.length;
+  const done = w.exercises.filter(ex => draft.ex[ex.n]?.done).length;
+  mount($("dayHeader"),
+    el("div", { class: "card" },
+      el("div", { class: "row" },
+        el("div", {},
+          el("h3", {}, `Treino ${ui.workout} — ${w.name}`),
+          el("div", { class: "dim" }, `${w.day} · ${fmtDate(draft.date)} · ${done}/${total} concluídos`)),
+      ),
+      el("div", { class: "progress" }, el("i", { style: { width: (total ? done / total * 100 : 0) + "%" } })),
+    ),
+    el("details", { class: "card", open: !draftHasData() },
+      el("summary", {}, el("h3", { style: { margin: 0 } }, "🔥 Aquecimento")),
+      el("div", { style: { marginTop: "8px" } }, warmupList(w.warmup)),
+    ),
+    PROGRAM.caution ? el("div", { class: "note" }, PROGRAM.caution) : null,
+  );
+}
+
+function renderExercises() {
+  const w = PROGRAM.workouts[ui.workout];
+  const last = lastLoads();
+  mount($("exerciseList"), w.exercises.map((ex, i) => {
+    const st = draft.ex[ex.n] || {};
+    const prev = last[ex.n];
+    const repsHint = String(ex.s || "").split("×")[1] || "";
+
+    const update = (field, value) => {
+      draft.ex[ex.n] = Object.assign({}, draft.ex[ex.n], { [field]: value });
+      saveDraft();
+    };
+    const card = el("div", { class: "card ex" + (st.done ? " done" : "") });
+    const chk = el("button", {
+      type: "button", class: "chk" + (st.done ? " on" : ""), "aria-label": "Marcar concluído",
+      "aria-pressed": String(!!st.done),
+      onclick: () => {
+        const v = !(draft.ex[ex.n]?.done);
+        update("done", v);
+        card.classList.toggle("done", v); chk.classList.toggle("on", v);
+        chk.setAttribute("aria-pressed", String(v));
+        if (navigator.vibrate) navigator.vibrate(12);
+        renderDayHeader();
+      },
+    }, "✓");
+
+    append(card, [
+      el("div", { class: "top" },
+        el("div", {},
+          el("div", { class: "idx" }, `${i + 1}/${w.exercises.length}`),
+          el("div", { class: "name" }, ex.n),
+          el("div", { class: "meta" }, `${ex.s || ""}${ex.rest ? " · descanso " + ex.rest : ""}`),
+          prev ? el("div", { class: "last" }, `última: ${fmtKg(prev.kg)}${prev.reps ? " × " + prev.reps : ""} (${fmtDate(prev.date, false)})`) : null,
+          (ex.caution || ex.sub) ? el("div", { class: "tags" },
+            ex.caution ? el("span", { class: "tag warn" }, "atenção: " + ex.caution) : null,
+            ex.sub ? el("span", { class: "tag sub" }, ex.sub) : null) : null,
+        ),
+        chk,
+      ),
+      el("div", { class: "inputs" },
+        el("label", { class: "field" }, el("span", {}, "carga (kg)"),
+          el("input", { type: "text", inputmode: "decimal", placeholder: prev ? String(prev.kg) : (ex.load || "kg"),
+            value: st.load || "", oninput: e => update("load", e.target.value.trim()) })),
+        el("label", { class: "field" }, el("span", {}, "reps feitas"),
+          el("input", { type: "text", inputmode: "numeric", placeholder: repsHint || "reps",
+            value: st.reps || "", oninput: e => update("reps", e.target.value.trim()) })),
+      ),
+    ]);
+    return card;
+  }));
+}
+
+/* Sliders de feedback: valor + cor conforme o limite de dor (≤3 ok, 4–5 atenção, ≥6 alto) */
+function bindSliders() {
+  const conf = [["rpe", "rpeV"], ["knee", "kneeV"], ["back", "backV"]];
+  for (const [id, out] of conf) {
+    const input = $(id);
+    const paint = () => {
+      $(out).textContent = input.value;
+      const v = +input.value;
+      input.classList.toggle("mid", id !== "rpe" ? (v >= 4 && v <= 5) : v >= 8 && v < 9);
+      input.classList.toggle("hot", id !== "rpe" ? v >= 6 : v >= 9);
+    };
+    input.addEventListener("input", () => { draft.fb[id] = +input.value; saveDraft(); paint(); });
+    input._paint = paint;
+  }
+  $("notes").addEventListener("input", e => { draft.fb.notes = e.target.value; saveDraft(); });
+}
+function fillFeedback() {
+  for (const id of ["rpe", "knee", "back"]) { $(id).value = draft.fb[id]; $(id)._paint(); }
+  $("notes").value = draft.fb.notes || "";
+}
+
+function renderTreino() {
+  renderWorkoutSeg();
+  renderDayHeader();
+  renderExercises();
+  fillFeedback();
+}
+
+/** Salva a sessão: monta linhas de logs + feedback, enfileira e tenta enviar. */
+async function saveSession() {
+  const w = PROGRAM.workouts[ui.workout];
+  const rows = w.exercises
+    .filter(ex => { const s = draft.ex[ex.n]; return s && (s.done || s.load || s.reps); })
+    .map(ex => {
+      const s = draft.ex[ex.n];
+      return {
+        session_date: draft.date, workout: ui.workout, exercise: ex.n,
+        sets: ex.s || null, reps: s.reps || null, load_kg: toNum(s.load), done: !!s.done,
+      };
+    });
+  if (!rows.length) { toast("Marca ou preenche pelo menos um exercício 😉", true); return; }
+
+  // Aviso de sessão duplicada (mesmo dia + mesmo treino)
+  const { logs } = getData();
+  if (logs.some(r => r.session_date === draft.date && r.workout === ui.workout) &&
+      !confirm(`Já existe Treino ${ui.workout} salvo hoje. Salvar outra sessão mesmo assim?`)) return;
+
+  const fb = {
+    session_date: draft.date, workout: ui.workout,
+    rpe: +draft.fb.rpe, knee: +draft.fb.knee, back: +draft.fb.back,
+    notes: (draft.fb.notes || "").trim() || null,
+  };
+  Queue.push("logs", rows);
+  Queue.push("feedback", fb);
+
+  $("saveBtn").disabled = true;
+  draft = emptyDraft(ui.workout); saveDraft();
+  renderTreino();
+  window.scrollTo({ top: 0, behavior: "smooth" });
+
+  await flushQueue();
+  $("saveBtn").disabled = false;
+  if (Queue.size() === 0) toast("Sessão salva e sincronizada ✅");
+  else toast(navigator.onLine && sb ? "Salvo no aparelho — sync pendente ⏳" : "Salvo offline — sincroniza quando voltar a rede 📶");
+  if (fb.knee > 3 || fb.back > 3) setTimeout(() => toast("Dor acima de 3/10 — não progride carga na próxima ⚠️", true), 2800);
+}
+
+function resetSession() {
+  if (draftHasData() && !confirm("Limpar tudo que foi preenchido nesta sessão?")) return;
+  draft = emptyDraft(ui.workout); saveDraft();
+  renderTreino();
+}
+
+/* =====================================================================
+   ABA PROGRAMA — visão geral do mês + sábado
+   ===================================================================== */
+function renderProgram() {
+  const blocks = [
+    el("div", { class: "card" },
+      el("h3", {}, PROGRAM.title || "Programa"),
+      PROGRAM.month ? el("div", { class: "dim", style: { marginBottom: "8px" } }, fmtMonth(PROGRAM.month)) : null,
+      el("div", { class: "dim" }, PROGRAM.weeks || "")),
+    PROGRAM.caution ? el("div", { class: "note" }, PROGRAM.caution) : null,
+  ];
+  for (const k of WORKOUT_KEYS) {
+    const w = PROGRAM.workouts[k];
+    blocks.push(
+      el("div", { class: "section-title" }, `Treino ${k} · ${w.day || ""}`),
+      el("div", { class: "card" },
+        el("h3", {}, w.name || ""),
+        el("details", { style: { margin: "8px 0 6px" } },
+          el("summary", { class: "dim" }, el("b", {}, "Aquecimento")),
+          warmupList(w.warmup)),
+        w.exercises.map((ex, i) => el("div", { class: "li" },
+          el("div", {},
+            el("div", {}, `${i + 1}. ${ex.n}`),
+            (ex.caution || ex.sub || ex.rest) ? el("div", { class: "tags" },
+              ex.rest ? el("span", { class: "tag ok" }, "descanso " + ex.rest) : null,
+              ex.caution ? el("span", { class: "tag warn" }, ex.caution) : null,
+              ex.sub ? el("span", { class: "tag sub" }, ex.sub) : null) : null),
+          el("b", {}, ex.s || ""))),
+        el("button", { type: "button", class: "btn ghost", onclick: () => { selectWorkout(k); go("treino"); } }, `Fazer Treino ${k} hoje`),
+      ),
+    );
+  }
+  if (PROGRAM.saturday) blocks.push(
+    el("div", { class: "section-title" }, "Sábado"),
+    el("div", { class: "card" }, el("div", { class: "dim" }, PROGRAM.saturday)));
+  mount($("programView"), blocks);
+}
+
+/* =====================================================================
+   ABA PROGRESSO — evolução de carga por exercício (gráfico SVG)
+   ===================================================================== */
+
+/** Série por exercício: maior carga de cada dia, ordenada por data. */
+function seriesByExercise(logs) {
+  const by = {};
+  for (const r of logs) {
+    const kg = toNum(r.load_kg);
+    if (kg == null || !r.exercise) continue;
+    const d = String(r.session_date).slice(0, 10);
+    const s = (by[r.exercise] ||= {});
+    s[d] = Math.max(s[d] ?? -Infinity, kg);
+  }
+  const out = {};
+  for (const [ex, days] of Object.entries(by)) {
+    out[ex] = Object.entries(days).sort(([a], [b]) => a.localeCompare(b)).map(([date, kg]) => ({ date, kg }));
+  }
+  return out;
+}
+
+/** Gráfico de linha em SVG puro (sem libs). Rótulos são nós de texto. */
+function lineChart(points) {
+  const W = 340, H = 180, P = { l: 34, r: 12, t: 18, b: 26 };
+  const kgs = points.map(p => p.kg);
+  let min = Math.min(...kgs), max = Math.max(...kgs);
+  if (min === max) { min -= 5; max += 5; }
+  const pad = (max - min) * 0.12; min = Math.max(0, min - pad); max += pad;
+  const x = i => P.l + (points.length === 1 ? (W - P.l - P.r) / 2 : i * (W - P.l - P.r) / (points.length - 1));
+  const y = v => P.t + (1 - (v - min) / (max - min)) * (H - P.t - P.b);
+
+  const ticks = [0, 0.5, 1].map(f => min + f * (max - min));
+  const linePts = points.map((p, i) => `${x(i).toFixed(1)},${y(p.kg).toFixed(1)}`).join(" ");
+  const areaPts = `${x(0).toFixed(1)},${H - P.b} ${linePts} ${x(points.length - 1).toFixed(1)},${H - P.b}`;
+  const labelEvery = Math.ceil(points.length / 6);
+
+  return svg("svg", { class: "chart", viewBox: `0 0 ${W} ${H}`, role: "img", "aria-label": "Evolução de carga" },
+    svg("defs", {},
+      svg("linearGradient", { id: "lg", x1: 0, x2: 1, y1: 0, y2: 0 },
+        svg("stop", { offset: "0%", "stop-color": "#6ee7b7" }), svg("stop", { offset: "100%", "stop-color": "#818cf8" })),
+      svg("linearGradient", { id: "ag", x1: 0, x2: 0, y1: 0, y2: 1 },
+        svg("stop", { offset: "0%", "stop-color": "#6ee7b7", "stop-opacity": ".25" }),
+        svg("stop", { offset: "100%", "stop-color": "#818cf8", "stop-opacity": "0" }))),
+    ticks.map(t => [
+      svg("line", { class: "grid", x1: P.l, x2: W - P.r, y1: y(t), y2: y(t) }),
+      svg("text", { class: "axis", x: P.l - 6, y: y(t) + 3, "text-anchor": "end" }, Math.round(t)),
+    ]),
+    svg("polygon", { class: "area", points: areaPts }),
+    svg("polyline", { class: "line", points: linePts }),
+    points.map((p, i) => [
+      svg("circle", { class: "pt", cx: x(i), cy: y(p.kg), r: 3.5 }),
+      (i === points.length - 1 || points.length <= 8)
+        ? svg("text", { class: "val", x: x(i), y: y(p.kg) - 8, "text-anchor": "middle" }, String(p.kg).replace(".", ",")) : null,
+      (i % labelEvery === 0 || i === points.length - 1)
+        ? svg("text", { class: "axis", x: x(i), y: H - 8, "text-anchor": "middle" }, fmtDate(p.date, false)) : null,
+    ]),
+  );
+}
+
+function renderProgress() {
+  const view = $("progressView");
+  const series = seriesByExercise(getData().logs);
+  // Ordena: exercícios do programa atual primeiro (na ordem do programa), depois os antigos
+  const order = WORKOUT_KEYS.flatMap(k => PROGRAM.workouts[k].exercises.map(e => e.n));
+  const names = Object.keys(series).sort((a, b) => {
+    const ia = order.indexOf(a), ib = order.indexOf(b);
+    return (ia < 0 ? 1e9 : ia) - (ib < 0 ? 1e9 : ib) || a.localeCompare(b);
+  });
+
+  if (!names.length) {
+    mount(view, el("div", { class: "card empty" }, "Sem cargas registradas ainda.", el("br"), "Salva o primeiro treino na aba Treino 🏋️"),
+      refreshButton());
+    return;
+  }
+  if (!series[ui.chartEx]) ui.chartEx = names[0];
+  const pts = series[ui.chartEx];
+  const first = pts[0].kg, lastP = pts[pts.length - 1].kg, best = Math.max(...pts.map(p => p.kg));
+  const delta = Math.round((lastP - first) * 10) / 10;
+
+  const select = el("select", {
+    "aria-label": "Exercício",
+    onchange: e => { ui.chartEx = e.target.value; saveUi(); renderProgress(); },
+  }, names.map(n => el("option", { value: n, selected: n === ui.chartEx }, n)));
+
+  mount(view,
+    el("div", { class: "card" },
+      select,
+      lineChart(pts.slice(-16)),
+      el("div", { class: "stats" },
+        el("div", { class: "stat" }, el("b", {}, fmtKg(lastP)), el("span", {}, "última")),
+        el("div", { class: "stat" }, el("b", {}, fmtKg(best)), el("span", {}, "melhor")),
+        el("div", { class: "stat" },
+          el("b", { class: delta > 0 ? "up" : delta < 0 ? "down" : "" }, (delta > 0 ? "+" : "") + fmtKg(delta)),
+          el("span", {}, `em ${pts.length} sessões`))),
+    ),
+    el("div", { class: "section-title" }, "Todos os exercícios"),
+    el("div", { class: "card" }, names.map(n => {
+      const s = series[n], d = Math.round((s[s.length - 1].kg - s[0].kg) * 10) / 10;
+      return el("button", { type: "button", class: "mini",
+        onclick: () => { ui.chartEx = n; saveUi(); renderProgress(); window.scrollTo({ top: 0, behavior: "smooth" }); } },
+        el("span", { class: "n" }, n),
+        el("span", { class: "v" }, fmtKg(s[s.length - 1].kg),
+          d ? el("span", { class: d > 0 ? "up" : "down" }, ` ${d > 0 ? "+" : ""}${String(d).replace(".", ",")}`) : null));
+    })),
+    refreshButton(),
+  );
+}
+
+function refreshButton() {
+  return el("button", { type: "button", class: "btn ghost", onclick: async e => {
+    e.target.disabled = true;
+    await flushQueue();
+    const ok = await pullRemote();
+    toast(ok ? "Dados atualizados ✅" : "Sem conexão com o banco — mostrando cache", !ok);
+    renderActive();
+  } }, "↻ Atualizar do banco");
+}
+
+/* =====================================================================
+   ABA HISTÓRICO — sessões agrupadas por data + treino
+   ===================================================================== */
+function renderHist() {
+  const { logs, feedback } = getData();
+  const sessions = {};
+  for (const r of logs) {
+    const k = `${r.session_date}|${r.workout}`;
+    (sessions[k] ||= { date: String(r.session_date), workout: r.workout, rows: [], fb: [], pending: false }).rows.push(r);
+    if (r._pending) sessions[k].pending = true;
+  }
+  for (const f of feedback) {
+    const k = `${f.session_date}|${f.workout}`;
+    (sessions[k] ||= { date: String(f.session_date), workout: f.workout, rows: [], fb: [], pending: false }).fb.push(f);
+    if (f._pending) sessions[k].pending = true;
+  }
+  const list = Object.values(sessions).sort((a, b) => b.date.localeCompare(a.date) || String(b.workout).localeCompare(String(a.workout)));
+  const view = $("histView");
+  if (!list.length) { mount(view, el("div", { class: "card empty" }, "Nenhuma sessão registrada ainda."), refreshButton()); return; }
+
+  const now = new Date();
+  const monthKey = today().slice(0, 7);
+  const thisMonth = new Set(list.filter(s => s.date.startsWith(monthKey)).map(s => s.date)).size;
+
+  mount(view,
+    el("div", { class: "card" },
+      el("div", { class: "stats" },
+        el("div", { class: "stat" }, el("b", {}, list.length), el("span", {}, "sessões")),
+        el("div", { class: "stat" }, el("b", {}, thisMonth), el("span", {}, `dias em ${MONTHS[now.getMonth()].slice(0, 3)}`)),
+        el("div", { class: "stat" }, el("b", {}, fmtDate(list[0].date, false)), el("span", {}, "último treino")))),
+    list.map(s => {
+      const fb = s.fb[s.fb.length - 1];
+      const wName = PROGRAM.workouts[s.workout]?.name;
+      const done = s.rows.filter(r => r.done).length;
+      return el("details", { class: "card" },
+        el("summary", {},
+          el("div", {},
+            el("h3", { style: { margin: 0 } }, `${fmtDate(s.date)} · Treino ${s.workout ?? "?"}`),
+            el("div", { class: "dim" },
+              [wName, s.rows.length ? `${done}/${s.rows.length} feitos` : null, fb ? `RPE ${fb.rpe ?? "—"}` : null].filter(Boolean).join(" · ")),
+            el("div", { class: "tags" },
+              s.pending ? el("span", { class: "tag warn" }, "pendente de sync") : null,
+              fb && fb.knee != null ? el("span", { class: "tag " + (fb.knee > 3 ? "warn" : "ok") }, `joelho ${fb.knee}/10`) : null,
+              fb && fb.back != null ? el("span", { class: "tag " + (fb.back > 3 ? "warn" : "ok") }, `lombar ${fb.back}/10`) : null))),
+        el("div", { style: { marginTop: "10px" } },
+          fb && fb.notes ? el("div", { class: "note", style: { color: "var(--txt)" } }, `“${fb.notes}”`) : null,
+          s.rows.map(r => el("div", { class: "li" },
+            el("span", {}, (r.done ? "✓ " : "· ") + (r.exercise ?? "")),
+            el("b", {}, fmtKg(toNum(r.load_kg)) + (r.reps ? ` × ${r.reps}` : ""))))),
+      );
+    }),
+    refreshButton(),
+  );
+}
+
+/* =====================================================================
+   NAVEGAÇÃO + BOOT
+   ===================================================================== */
+const TABS = ["treino", "programa", "progresso", "historico"];
+function go(tab) {
+  if (!TABS.includes(tab)) tab = "treino";
+  ui.tab = tab; saveUi();
+  document.querySelectorAll(".tab").forEach(t => t.classList.toggle("on", t.id === "tab-" + tab));
+  document.querySelectorAll("nav button").forEach(b => b.classList.toggle("on", b.dataset.tab === tab));
+  renderActive();
+  window.scrollTo({ top: 0 });
+}
+function renderActive() {
+  if (ui.tab === "treino") { renderDayHeader(); renderExercises(); }
+  else if (ui.tab === "programa") renderProgram();
+  else if (ui.tab === "progresso") renderProgress();
+  else if (ui.tab === "historico") renderHist();
+}
+
+function boot() {
+  $("headerSub").textContent = [PROGRAM.title, fmtMonth(PROGRAM.month)].filter(Boolean).join(" · ");
+  document.querySelectorAll("nav button").forEach(b => b.addEventListener("click", () => go(b.dataset.tab)));
+  $("saveBtn").addEventListener("click", saveSession);
+  $("resetBtn").addEventListener("click", resetSession);
+  $("syncBadge").addEventListener("click", async () => {
+    if (!sb) { toast("Supabase não carregou — recarrega com internet", true); return; }
+    await flushQueue(); const ok = await pullRemote();
+    toast(Queue.size() ? `Ainda ${Queue.size()} pendente(s)` : ok ? "Tudo sincronizado ✅" : "Sem conexão", !ok || Queue.size() > 0);
+    renderActive();
+  });
+
+  // Rede: tenta sincronizar quando volta; atualiza badge quando cai
+  window.addEventListener("online", async () => { await flushQueue(); await pullRemote(); renderActive(); });
+  window.addEventListener("offline", updateBadge);
+  document.addEventListener("visibilitychange", () => { if (!document.hidden) flushQueue(); });
+  setInterval(flushQueue, 60_000);
+
+  bindSliders();
+  renderTreino();
+  renderProgram();
+  go(ui.tab);
+  updateBadge();
+
+  // Sincroniza fila pendente e atualiza cache em segundo plano
+  (async () => { await flushQueue(); if (await pullRemote()) renderActive(); })();
+}
+
+boot();
+</script>
+</body>
+</html>
